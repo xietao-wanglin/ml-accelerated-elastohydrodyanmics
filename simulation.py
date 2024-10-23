@@ -1,12 +1,13 @@
+import time
+from typing import Optional
+
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-import time
+
 from scipy.integrate import solve_ivp
-from tqdm import tqdm
 from matplotlib.animation import FuncAnimation
-from typing import Optional
 
 class Simulation:
 
@@ -16,6 +17,19 @@ class Simulation:
                  eps: Optional[float] = 0.15,
                  rest_length: Optional[float] = 0.25,
                  shear: Optional[float] = 1.0) -> None:
+        """
+        Initialises the Simulation class.
+
+        Parameters:
+        bead_pos (ndarray, optional): 
+            Position of beads at the start, default is array([[0, 0.5], [0, -0.5]]).
+            The rows are given by coordinates of each of the beads. Must have an even number of rows
+        mu (float, optional): dynamic viscosity, default is 1.0.
+        k (float, optional): spring constant of the dumbbells, default is 0.1
+        eps (float, optional): value of epsilon used in the the regular stokeslet, default is 0.15.
+        rest_length (float, optional): rest length of the dumbbell, default is 0.25.
+        shear (float, optional): background shear strength, default is 1.0.
+        """
         
         self.mu = mu
         self.k = k
@@ -35,6 +49,9 @@ class Simulation:
         self.bead_sol = None
 
     def fluid_flow(self, x, y):
+        """
+        Returns the current fluid flow at position (x, y).
+        """
     
         xr = self.bead_pos[1::2] - self.bead_pos[::2]
         dists = np.sqrt(xr[:, 0] * xr[:, 0] + xr[:, 1] * xr[:, 1])
@@ -72,6 +89,9 @@ class Simulation:
         return u, v
     
     def bead_dynamics(self, t, positions):
+        """
+        Creates ODE system wrapper for SciPy's solve_ivp routine.
+        """
 
         num_of_beads = int(positions.shape[0]/2)
         positions = positions.reshape(num_of_beads, 2)
@@ -119,18 +139,39 @@ class Simulation:
             u_array[2*n+1] = v
         return u_array
     
-    def solve_dynamics(self, max_time: Optional[float] = 1.0, verbose: Optional[bool] = False) -> None:
+    def solve_dynamics(self, max_time: Optional[float] = 1.0, 
+                       verbose: Optional[bool] = False) -> None:
+        """
+        Solves ODE system using solve_ivp
+        """
 
         if verbose:
             start = time.time()
             print('Solving bead dynamics... \n')
-        self.bead_sol = solve_ivp(self.bead_dynamics, [0, max_time], y0 = np.ravel(self.bead_pos), dense_output=True, method='RK45')
+        self.bead_sol = solve_ivp(self.bead_dynamics, 
+                                  [0, max_time], 
+                                  y0 = np.ravel(self.bead_pos), 
+                                  dense_output=True, 
+                                  method='RK45')
 
         if verbose:
             end = time.time()
             print(f'Solved bead dyanmics, took {end-start:2f} seconds.')
 
-    def create_animation(self, domain=None, grid_points=100, n_timesteps=100, filename=None):
+    def create_animation(self, domain: Optional[list] = None, 
+                         grid_points: Optional[int] = 100, 
+                         n_timesteps: Optional[int] = 100, 
+                         filename: Optional[str] = None) -> None:
+        """
+        Creates animation of beads and fluid flow.
+
+        Parameters:
+        domain (list, optional): the space domain to visualise, default is [[-1, -1], [1, 1]].
+        grid_points (int, optional): number of evenly spaced grid points used to calculate the flow, default is 100.
+        n_timesteps (int, optional): number of evenly spaced timesteps to calculate the evolution, default is 100.
+        filename (str, optional): None to not create a video file, 
+        otherwise string will be used as filename (extension and video format not included). 
+        """
 
         if self.bead_sol is None:
             raise ValueError('Solve bead dynamics first')
@@ -152,10 +193,12 @@ class Simulation:
         ax.set_ylabel(r'$y$')
         ax.set_title(r'Time: 0.0')
         self.stream = ax.streamplot(x, y, u, v, color='red')
-        self.heatmap = ax.pcolormesh(x, y, np.sqrt(u*u+v*v), alpha=1, cmap='PiYG', norm=colors.LogNorm(vmin=0.001, vmax=100))
+        self.heatmap = ax.pcolormesh(x, y, np.sqrt(u*u+v*v), alpha=1, cmap='PiYG',
+                                      norm=colors.LogNorm(vmin=0.001, vmax=100))
         lines = [None]*num_of_dumbbells
         for d in range(num_of_dumbbells):
-            lines[d], = ax.plot(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1], marker='o', lw=4)
+            lines[d], = ax.plot(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1],
+                                 marker='o', lw=4)
         f.colorbar(self.heatmap, label=r'$|u| = \sqrt{\partial_t x_i \partial_t x_i}$')
         max_t = self.bead_sol.t[-1]
         t = np.linspace(0, max_t, n_timesteps)
