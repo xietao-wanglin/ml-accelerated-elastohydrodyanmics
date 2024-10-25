@@ -8,6 +8,7 @@ import matplotlib.colors as colors
 
 from scipy.integrate import solve_ivp
 from matplotlib.animation import FuncAnimation
+from numpy.typing import ArrayLike
 
 class Simulation:
 
@@ -36,57 +37,55 @@ class Simulation:
         self.eps = eps
         self.rest_length = rest_length
         self.shear = shear
+        self.bead_sol = None
 
         if bead_pos is None:
             self.bead_pos = np.array([[0, 0.5], [0, -0.5]])
         else:
-            self.bead_pos = np.atleast_2d(bead_pos)
-        
+            self.bead_pos = bead_pos
+
+        self.dim = self.bead_pos.shape[1]
+
+        if self.dim == 1:
+            self.bead_pos = np.transpose(np.atleast_2d(bead_pos))
         if (self.bead_pos.shape[0] % 2) == 1:
             raise ValueError('Number of beads must be even.')
         
-        self.dim = self.bead_pos.shape[1]
-        self.bead_sol = None
-
-    def fluid_flow(self, x, y):
+    def fluid_flow(self, x: ArrayLike):
         """
-        Returns the current fluid flow at position (x, y).
+        Returns the current fluid flow at position x.
         """
     
         xr = self.bead_pos[1::2] - self.bead_pos[::2]
-        dists = np.sqrt(xr[:, 0] * xr[:, 0] + xr[:, 1] * xr[:, 1])
-            
-        x = np.asarray(x)
-        y = np.asarray(y)
+        dists = np.sqrt(
+            (xr*xr).sum(axis=1)
+            )
 
-        rn = np.sqrt((x[..., np.newaxis] - self.bead_pos[:, 0])**2 + 
-                    (y[..., np.newaxis] - self.bead_pos[:, 1])**2)
+        x = np.asarray(x)
+        x = np.stack(x, axis=-1)
+
+        rn = np.sqrt(
+            ((x[..., np.newaxis, :] - self.bead_pos)**2).sum(axis=-1)
+            )
 
         const = self.k*(dists-self.rest_length)/(8*np.pi*self.mu*self.rest_length*dists)
+        
+        s1 = (xr * (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+      (x[..., np.newaxis, :] - self.bead_pos[::2]) * 
+      ((x[..., np.newaxis, :] - self.bead_pos[::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
 
-        s1x = (xr[:, 0] * (rn[..., ::2]**2 + 2 * self.eps**2) + 
-            (x[..., np.newaxis] - self.bead_pos[::2, 0]) * 
-            ((x[..., np.newaxis] - self.bead_pos[::2, 0]) * xr[:, 0] + 
-                (y[..., np.newaxis] - self.bead_pos[::2, 1]) * xr[:, 1])) / (rn[..., ::2]**2 + self.eps**2)**(3/2)
+        
+        s2 = (xr * (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+      (x[..., np.newaxis, :] - self.bead_pos[1::2]) * 
+      ((x[..., np.newaxis, :] - self.bead_pos[1::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
 
-        s1y = (xr[:, 1] * (rn[..., ::2]**2 + 2 * self.eps**2) + 
-            (y[..., np.newaxis] - self.bead_pos[::2, 1]) * 
-            ((x[..., np.newaxis] - self.bead_pos[::2, 0]) * xr[:, 0] + 
-                (y[..., np.newaxis] - self.bead_pos[::2, 1]) * xr[:, 1])) / (rn[..., ::2]**2 + self.eps**2)**(3/2)
+        u = (
+            (s1 * const[..., np.newaxis]).sum(axis=-2) -  
+            (s2 * const[..., np.newaxis]).sum(axis=-2)
+       )
 
-        s2x = (xr[:, 0] * (rn[..., 1::2]**2 + 2 * self.eps**2) + 
-            (x[..., np.newaxis] - self.bead_pos[1::2, 0]) * 
-            ((x[..., np.newaxis] - self.bead_pos[1::2, 0]) * xr[:, 0] + 
-                (y[..., np.newaxis] - self.bead_pos[1::2, 1]) * xr[:, 1])) / (rn[..., 1::2]**2 + self.eps**2)**(3/2)
-
-        s2y = (xr[:, 1] * (rn[..., 1::2]**2 + 2 * self.eps**2) + 
-            (y[..., np.newaxis] - self.bead_pos[1::2, 1]) * 
-            ((x[..., np.newaxis] - self.bead_pos[1::2, 0]) * xr[:, 0] + 
-                (y[..., np.newaxis] - self.bead_pos[1::2, 1]) * xr[:, 1])) / (rn[..., 1::2]**2 + self.eps**2)**(3/2)
-
-        u = (s1x * const).sum(axis=-1) - (s2x * const).sum(axis=-1) + self.shear * y
-        v = (s1y * const).sum(axis=-1) - (s2y * const).sum(axis=-1)
-        return u, v
+        u[..., 0] += self.shear * x[..., 1]
+        return u
     
     def bead_dynamics(self, t, positions):
         """
