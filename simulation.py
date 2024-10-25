@@ -21,15 +21,21 @@ class Simulation:
         """
         Initialises the Simulation class.
 
-        Parameters:
-        bead_pos (ndarray, optional): 
-            Position of beads at the start, default is array([[0, 0.5], [0, -0.5]]).
-            The rows are given by coordinates of each of the beads. Must have an even number of rows
-        mu (float, optional): dynamic viscosity, default is 1.0.
-        k (float, optional): spring constant of the dumbbells, default is 0.1
-        eps (float, optional): value of epsilon used in the the regular stokeslet, default is 0.15.
-        rest_length (float, optional): rest length of the dumbbell, default is 0.25.
-        shear (float, optional): background shear strength, default is 1.0.
+        Parameters
+        ----------
+        bead_pos: ndarray, optional 
+            Position of beads at the start, default is None.
+            The rows are given by coordinates of each of the beads. Must have an even number of rows.
+        mu: float, optional
+            Dynamic viscosity, default is 1.0.
+        k: float, optional
+            Spring constant of the dumbbells, default is 0.1
+        eps: float, optional
+            Value of epsilon used in the the regular stokeslet, default is 0.15.
+        rest_length: float, optional 
+            Rest length of the dumbbell, default is 0.25.
+        shear: float, optional
+            Background shear strength, default is 1.0.
         """
         
         self.mu = mu
@@ -51,7 +57,7 @@ class Simulation:
         if (self.bead_pos.shape[0] % 2) == 1:
             raise ValueError('Number of beads must be even.')
         
-    def fluid_flow(self, x: ArrayLike):
+    def fluid_flow(self, x: ArrayLike) -> np.ndarray:
         """
         Returns the current fluid flow at position x.
         """
@@ -85,63 +91,58 @@ class Simulation:
        )
 
         u[..., 0] += self.shear * x[..., 1]
+
         return u
     
-    def bead_dynamics(self, t, positions):
+    def bead_dynamics(self, t, positions) -> np.ndarray:
         """
         Creates ODE system wrapper for SciPy's solve_ivp routine.
         """
 
-        num_of_beads = int(positions.shape[0]/2)
-        positions = positions.reshape(num_of_beads, 2)
-        u_array = np.zeros(2*num_of_beads)
+        num_of_beads = int(positions.shape[0]/self.dim)
+        positions = positions.reshape(num_of_beads, self.dim)
+        u_array = np.zeros(self.dim*num_of_beads)
             
         for n in range(num_of_beads):
         
             xr = positions[1::2] - positions[::2]
-            dists = np.sqrt(xr[:, 0] * xr[:, 0] + xr[:, 1] * xr[:, 1])
-            x = positions[n, 0]
-            y = positions[n, 1]
+            dists = np.sqrt(
+                (xr*xr).sum(axis=1)
+                )
+            x = positions[n]
 
             x = np.asarray(x)
-            y = np.asarray(y)
+            x = np.stack(x, axis=-1)
 
-            rn = np.sqrt((x[..., np.newaxis] - positions[:, 0])**2 + 
-                        (y[..., np.newaxis] - positions[:, 1])**2)
+            rn = np.sqrt(
+                ((x[..., np.newaxis, :] - positions)**2).sum(axis=-1)
+                )
 
-            const = self.k * (dists - self.rest_length) / (8 * np.pi * self.mu * self.rest_length * dists)
-
-            s1x = (xr[:, 0] * (rn[..., ::2]**2 + 2 * self.eps**2) + 
-                (x[..., np.newaxis] - positions[::2, 0]) * 
-                ((x[..., np.newaxis] - positions[::2, 0]) * xr[:, 0] + 
-                    (y[..., np.newaxis] - positions[::2, 1]) * xr[:, 1])) / (rn[..., ::2]**2 + self.eps**2)**(3/2)
-
-            s1y = (xr[:, 1] * (rn[..., ::2]**2 + 2 * self.eps**2) + 
-                (y[..., np.newaxis] - positions[::2, 1]) * 
-                ((x[..., np.newaxis] - positions[::2, 0]) * xr[:, 0] + 
-                    (y[..., np.newaxis] - positions[::2, 1]) * xr[:, 1])) / (rn[..., ::2]**2 + self.eps**2)**(3/2)
-
-            s2x = (xr[:, 0] * (rn[..., 1::2]**2 + 2 * self.eps**2) + 
-                (x[..., np.newaxis] - positions[1::2, 0]) * 
-                ((x[..., np.newaxis] - positions[1::2, 0]) * xr[:, 0] + 
-                    (y[..., np.newaxis] - positions[1::2, 1]) * xr[:, 1])) / (rn[..., 1::2]**2 + self.eps**2)**(3/2)
-
-            s2y = (xr[:, 1] * (rn[..., 1::2]**2 + 2 * self.eps**2) + 
-                (y[..., np.newaxis] - positions[1::2, 1]) * 
-                ((x[..., np.newaxis] - positions[1::2, 0]) * xr[:, 0] + 
-                    (y[..., np.newaxis] - positions[1::2, 1]) * xr[:, 1])) / (rn[..., 1::2]**2 + self.eps**2)**(3/2)
-
-            u = (s1x * const).sum(axis=-1) - (s2x * const).sum(axis=-1) + self.shear * y
-            v = (s1y * const).sum(axis=-1) - (s2y * const).sum(axis=-1)
+            const = self.k*(dists-self.rest_length)/(8*np.pi*self.mu*self.rest_length*dists)
             
-            u_array[2*n] = u
-            u_array[2*n+1] = v
+            s1 = (xr * (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+        (x[..., np.newaxis, :] - positions[::2]) * 
+        ((x[..., np.newaxis, :] - positions[::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+            
+            s2 = (xr * (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+        (x[..., np.newaxis, :] - positions[1::2]) * 
+        ((x[..., np.newaxis, :] - positions[1::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+            u = (
+                (s1 * const[..., np.newaxis]).sum(axis=-2) -  
+                (s2 * const[..., np.newaxis]).sum(axis=-2)
+        )
+
+            u[..., 0] += self.shear * x[..., 1]
+            u_array[2*n:2*n+self.dim] = u
+
         return u_array
     
     def solve_dynamics(self, max_time: Optional[float] = 1.0, 
                        verbose: Optional[bool] = False) -> None:
         """
-        Solves ODE system using solve_ivp
+        Solves beads ODE system using SciPy's solve_ivp
         """
 
         if verbose:
@@ -157,20 +158,27 @@ class Simulation:
             end = time.time()
             print(f'Solved bead dyanmics, took {end-start:2f} seconds.')
 
-    def create_animation(self, domain: Optional[list] = None, 
+    def create_2d_animation(self, domain: Optional[list] = None, 
                          grid_points: Optional[int] = 100, 
                          n_timesteps: Optional[int] = 100, 
                          filename: Optional[str] = None) -> None:
         """
-        Creates animation of beads and fluid flow.
+        Creates two-dimensional animation of beads and fluid flow.
 
-        Parameters:
-        domain (list, optional): the space domain to visualise, default is [[-1, -1], [1, 1]].
-        grid_points (int, optional): number of evenly spaced grid points used to calculate the flow, default is 100.
-        n_timesteps (int, optional): number of evenly spaced timesteps to calculate the evolution, default is 100.
-        filename (str, optional): None to not create a video file, 
-        otherwise string will be used as filename (extension and video format not included). 
+        Parameters
+        ----------
+        domain: list, optional 
+            The space domain to visualise, default is None.
+        grid_points: int, optional
+            Number of evenly spaced grid points used to calculate the flow, default is 100.
+        n_timesteps: int, optional
+            Number of evenly spaced timesteps to calculate the evolution, default is 100.
+        filename: str, optional
+            None to not create a video file, 
+            otherwise string will be used as filename (extension and video format not included). 
         """
+        if self.dim != 2:
+            raise ValueError('Can only make animations in 2D')
 
         if self.bead_sol is None:
             raise ValueError('Solve bead dynamics first')
@@ -180,8 +188,10 @@ class Simulation:
 
         x_flat = np.linspace(domain[0][0], domain[1][0], grid_points)
         y_flat = np.linspace(domain[0][1], domain[1][1], grid_points)
-        x, y = np.meshgrid(x_flat, y_flat)
-        u, v = self.fluid_flow(x, y)
+        X = np.meshgrid(x_flat, y_flat)
+        x, y = X
+        U = self.fluid_flow(X)
+        u, v = U[..., 0], U[..., 1]
         num_of_dumbbells = int(self.bead_pos.shape[0]/2)
 
         f = plt.figure(figsize=(6, 5))
@@ -205,7 +215,8 @@ class Simulation:
         def update(fn):
             ax.set_title(fr'Time: {t[fn]:2f}')
             self.bead_pos = sol[:, fn].reshape(num_of_dumbbells*2, 2)
-            u, v = self.fluid_flow(x, y)
+            U = self.fluid_flow(X)
+            u, v = U[..., 0], U[..., 1]
             z = np.sqrt(u*u + v*v)
             self.heatmap.set_array(z)
             
