@@ -141,7 +141,8 @@ class Simulation:
 
         return u_array
     
-    def solve_dynamics(self, max_time: Optional[float] = 1.0, 
+    def solve_dynamics(self, max_time: Optional[float] = 1.0,
+                       method: Optional[str] = 'RK45', 
                        verbose: Optional[bool] = False) -> None:
         """
         Solves beads ODE system using SciPy's solve_ivp
@@ -150,6 +151,8 @@ class Simulation:
         ----------
         max_time: float, optional
             Maximum time of simulation, default is 1.0.
+        method: str, optional
+            Method to pass to solve_ivp, default is RK45.
         verbose: bool, optional
             Set to True for more information during simulation.
         """
@@ -161,7 +164,7 @@ class Simulation:
                                   [0, max_time], 
                                   y0 = np.ravel(self.bead_pos), 
                                   dense_output=True, 
-                                  method='RK45')
+                                  method=method)
 
         if verbose:
             end = time.time()
