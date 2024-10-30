@@ -165,6 +165,7 @@ cython_debug/
 .vscode/
 
 # Figures and animations
+*.pdf
 *.png
 *.mp4
 *.dat

@@ -57,6 +57,8 @@ class Simulation:
         if (self.bead_pos.shape[0] % 2) == 1:
             raise ValueError('Number of beads must be even.')
         
+        self.num_of_dumbbells = int(self.bead_pos.shape[0]/2)
+        
     def fluid_flow(self, x: ArrayLike) -> np.ndarray:
         """
         Returns the current fluid flow at position x.
@@ -143,6 +145,13 @@ class Simulation:
                        verbose: Optional[bool] = False) -> None:
         """
         Solves beads ODE system using SciPy's solve_ivp
+
+        Parameters
+        ----------
+        max_time: float, optional
+            Maximum time of simulation, default is 1.0.
+        verbose: bool, optional
+            Set to True for more information during simulation.
         """
 
         if verbose:
@@ -177,6 +186,7 @@ class Simulation:
             None to not create a video file, 
             otherwise string will be used as filename (extension and video format not included). 
         """
+
         if self.dim != 2:
             raise ValueError('Can only make animations in 2D')
 
@@ -208,7 +218,7 @@ class Simulation:
         for d in range(num_of_dumbbells):
             lines[d], = ax.plot(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1],
                                  marker='o', lw=4)
-        f.colorbar(self.heatmap, label=r'$|u| = \sqrt{\partial_t x_i \partial_t x_i}$')
+        f.colorbar(self.heatmap, label=r'$|u| = \sqrt{u_i u_i}$')
         max_t = self.bead_sol.t[-1]
         t = np.linspace(0, max_t, n_timesteps)
         sol = self.bead_sol.sol(t)
