@@ -58,6 +58,7 @@ class Simulation:
             raise ValueError('Number of beads must be even.')
         
         self.num_of_dumbbells = int(self.bead_pos.shape[0]/2)
+        self.num_of_beads = int(2*self.num_of_dumbbells)
         
     def fluid_flow(self, x: ArrayLike) -> np.ndarray:
         """
@@ -101,11 +102,10 @@ class Simulation:
         Creates ODE system wrapper for SciPy's solve_ivp routine.
         """
 
-        num_of_beads = int(positions.shape[0]/self.dim)
-        positions = positions.reshape(num_of_beads, self.dim)
-        u_array = np.zeros(self.dim*num_of_beads)
+        positions = positions.reshape(self.num_of_beads, self.dim)
+        u_array = np.zeros((self.num_of_beads, self.dim))
             
-        for n in range(num_of_beads):
+        for n in range(self.num_of_beads):
         
             xr = positions[1::2] - positions[::2]
             dists = np.sqrt(
@@ -137,9 +137,9 @@ class Simulation:
         )
 
             u[..., 0] += self.shear * x[..., 1]
-            u_array[2*n:2*n+self.dim] = u
+            u_array[n] = u
 
-        return u_array
+        return np.ravel(u_array)
     
     def solve_dynamics(self, max_time: Optional[float] = 1.0,
                        method: Optional[str] = 'RK45', 
@@ -244,6 +244,83 @@ class Simulation:
             self.stream = ax.streamplot(x, y, u, v, color='red')
 
         animation = FuncAnimation(f, update, interval=1, frames=n_timesteps)
-        plt.show()
         if filename is not None:
-            animation.save(f'./videos/{filename}')
+            animation.save(f'./videos/{filename}', writer='ffmpeg', fps=20)
+        plt.show()
+
+    def create_3d_animation(self, domain: Optional[list] = None, 
+                         grid_points: Optional[int] = 10, 
+                         n_timesteps: Optional[int] = 100,
+                         arrow_size: Optional[float] = 1.0, 
+                         filename: Optional[str] = None) -> None:
+        """
+        Creates two-dimensional animation of beads and fluid flow.
+
+        Parameters
+        ----------
+        domain: list, optional 
+            The space domain to visualise, default is None.
+        grid_points: int, optional
+            Number of evenly spaced grid points used to calculate the flow, default is 10.
+        n_timesteps: int, optional
+            Number of evenly spaced timesteps to calculate the evolution, default is 100.
+        arrow_size: float, optional
+            Size of the quiver arrows, default is 1.0.
+        filename: str, optional
+            None to not create a video file, 
+            otherwise string will be used as filename (extension and video format not included). 
+        """
+
+        if self.dim != 3:
+            raise ValueError('Can only make animations in 3D')
+
+        if self.bead_sol is None:
+            raise ValueError('Solve bead dynamics first')
+        
+        if domain is None:
+            domain = [[-1, -1, -1], [1, 1, 1]]
+
+        x_flat = np.linspace(domain[0][0], domain[1][0], grid_points)
+        y_flat = np.linspace(domain[0][1], domain[1][1], grid_points)
+        z_flat = np.linspace(domain[0][2], domain[1][2], grid_points)
+        X = np.meshgrid(x_flat, y_flat, z_flat)
+        U = self.fluid_flow(X)
+        u, v, w = U[..., 0], U[..., 1], U[..., 2]
+        x, y, z = X
+
+        num_of_dumbbells = int(self.bead_pos.shape[0]/2)
+        f = plt.figure(figsize=(6, 5))
+        ax = f.add_subplot(111, projection='3d')
+        ax.set_xlim(domain[0][0], domain[1][0])
+        ax.set_ylim(domain[0][1], domain[1][1])
+        ax.set_zlim(domain[0][2], domain[1][2])
+        ax.set_xlabel(r'$x$')
+        ax.set_ylabel(r'$y$')
+        ax.set_zlabel(r'$z$')
+        ax.set_title(r'Time: 0.0')
+
+        self.quiver = ax.quiver(x, y, z, u, v, w, color='r', length=arrow_size)
+
+        lines = [None]*num_of_dumbbells
+        for d in range(num_of_dumbbells):
+            lines[d], = ax.plot(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1],
+                                zs=self.bead_pos[2*d:2*d+2][:, 2],
+                                 marker='o', lw=4)
+        max_t = self.bead_sol.t[-1]
+        t = np.linspace(0, max_t, n_timesteps)
+        sol = self.bead_sol.sol(t)
+        def update(fn):
+            ax.set_title(fr'Time: {t[fn]:2f}')
+            self.bead_pos = sol[:, fn].reshape(num_of_dumbbells*2, 3)
+            U = self.fluid_flow(X)
+            u, v, w = U[..., 0], U[..., 1], U[..., 2]
+            
+            for d in range(num_of_dumbbells):
+                lines[d].set_data_3d(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1], self.bead_pos[2*d:2*d+2][:, 2])
+            self.quiver.remove()
+            self.quiver = ax.quiver(x, y, z, u, v, w, color='r', length=arrow_size)
+
+        animation = FuncAnimation(f, update, interval=1, frames=n_timesteps)
+        if filename is not None:
+            animation.save(f'./videos/{filename}', writer='ffmpeg', fps=20)
+        plt.show()
