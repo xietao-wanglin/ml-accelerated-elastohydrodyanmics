@@ -62,8 +62,8 @@ def flow_around_dumbbell():
     f.supylabel(r'$x_2$')
     f.tight_layout()
 
-    plt.savefig('./figures/flow_around_dumbbell.pdf')
-    plt.savefig('./figures/flow_around_dumbbell.png')
+    plt.savefig('./figures/flow_around_dumbbell.pdf', bbox_inches='tight')
+    plt.savefig('./figures/flow_around_dumbbell.png', bbox_inches='tight')
     plt.show()
 
 def flow_multiple_dumbbells():
@@ -134,8 +134,8 @@ def flow_multiple_dumbbells():
     f.supylabel(r'$x_2$')
     f.tight_layout()
 
-    plt.savefig('./figures/flow_multiple_dumbbells.pdf')
-    plt.savefig('./figures/flow_multiple_dumbbells.png')
+    plt.savefig('./figures/flow_multiple_dumbbells.pdf', bbox_inches='tight')
+    plt.savefig('./figures/flow_multiple_dumbbells.png', bbox_inches='tight')
     plt.show()
 
 def simulation_scaling_implicit():
@@ -153,8 +153,8 @@ def simulation_scaling_implicit():
     ax.set_yscale('log')
     ax.legend(frameon=False)
 
-    plt.savefig('./figures/simulation_scaling_implicit.pdf')
-    plt.savefig('./figures/simulation_scaling_implicit.png')
+    plt.savefig('./figures/simulation_scaling_implicit.pdf', bbox_inches='tight')
+    plt.savefig('./figures/simulation_scaling_implicit.png', bbox_inches='tight')
     plt.show()
 
 if __name__ == '__main__':

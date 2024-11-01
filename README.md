@@ -1,3 +1,9 @@
-# Machine-Learning Accelerated Simulation of Suspensions of Elastic Microfilaments
+# Simulation of Spring-Bead Models in Viscous Flows
 
-Work-in-progress
+To run a simulation, install dependencies,
+
+`pip install -r requirements.txt`,
+
+then run the launcher,
+
+`python launcher.py`.
