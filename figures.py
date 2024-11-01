@@ -138,7 +138,27 @@ def flow_multiple_dumbbells():
     plt.savefig('./figures/flow_multiple_dumbbells.png')
     plt.show()
 
+def simulation_scaling_implicit():
+
+    data = np.loadtxt('./data/scaling.dat', delimiter=',')
+    mean = data.mean(axis=1)
+    error = data.std(axis=1)/data.shape[1]
+    num_of_beads = np.array([2**x for x in range(1, 11)])/2
+    f, ax = plt.subplots(1, 1)
+    ax.errorbar(num_of_beads, mean, yerr=error, marker='o', lw=2, color='red', capsize=4, label='Computed runtime')
+    ax.plot(num_of_beads[3:], (0.00005*num_of_beads**3)[3:], lw=2, ls='dashed', color='black', label=r'$O(N^3)$')
+    ax.set_ylabel('Time, seconds')
+    ax.set_xlabel('Number of dumbbells, $N$')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.legend(frameon=False)
+
+    plt.savefig('./figures/simulation_scaling_implicit.pdf')
+    plt.savefig('./figures/simulation_scaling_implicit.png')
+    plt.show()
+
 if __name__ == '__main__':
 
     flow_around_dumbbell()
     flow_multiple_dumbbells()
+    simulation_scaling_implicit()
