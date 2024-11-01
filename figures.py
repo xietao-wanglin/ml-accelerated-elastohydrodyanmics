@@ -2,18 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-from simulation import Simulation
+from simulation import Simulation, FlowLibrary
 
 def flow_around_dumbbell():
 
     f, ax = plt.subplots(1, 3, figsize=(12, 5), sharex=True, sharey=True)
 
-    sim = Simulation()
+    sim = Simulation(bg_flow=FlowLibrary.shear_flow_2d)
     sim.solve_dynamics(max_time=10.0, verbose=False)
     x_flat = np.linspace(-1, 1, 100)
     y_flat = np.linspace(-1, 1, 100)
     X = np.meshgrid(x_flat, y_flat)
-    U = sim.fluid_flow(X)
+    U = sim.fluid_flow(X, 0)
     u, v = U[..., 0], U[..., 1]
     x, y = X
 
@@ -32,7 +32,7 @@ def flow_around_dumbbell():
 
     ax[1].set_title(fr'Time: {t[25]:1f}')
     sim.bead_pos = sol[:, 33].reshape(1*2, 2)
-    U = sim.fluid_flow(X)
+    U = sim.fluid_flow(X, t[25])
     u, v = U[..., 0], U[..., 1]
 
     ax[1].plot(sim.bead_pos[:, 0], sim.bead_pos[:, 1],
@@ -45,7 +45,7 @@ def flow_around_dumbbell():
 
     ax[2].set_title(fr'Time: {t[80]:1f}')
     sim.bead_pos = sol[:, 80].reshape(1*2, 2)
-    U = sim.fluid_flow(X)
+    U = sim.fluid_flow(X, t[80])
     u, v = U[..., 0], U[..., 1]
 
     ax[2].plot(sim.bead_pos[:, 0], sim.bead_pos[:, 1],
@@ -77,12 +77,12 @@ def flow_multiple_dumbbells():
             [-0.71030448, -0.8388744],
             [-0.28877452,  0.88086389]])
     
-    sim = Simulation(bead_pos=r)
+    sim = Simulation(bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d)
     sim.solve_dynamics(max_time=10.0, verbose=False)
     x_flat = np.linspace(-2, 2, 100)
     y_flat = np.linspace(-2, 2, 100)
     X = np.meshgrid(x_flat, y_flat)
-    U = sim.fluid_flow(X)
+    U = sim.fluid_flow(X, 0)
     u, v = U[..., 0], U[..., 1]
     x, y = X
 
@@ -101,8 +101,8 @@ def flow_multiple_dumbbells():
     ax[0].set_ylim(-2, 2)
 
     ax[1].set_title(fr'Time: {t[25]:1f}')
-    sim.bead_pos = sol[:, 33].reshape(sim.num_of_dumbbells*2, 2)
-    U = sim.fluid_flow(X)
+    sim.bead_pos = sol[:, 25].reshape(sim.num_of_dumbbells*2, 2)
+    U = sim.fluid_flow(X, t[25])
     u, v = U[..., 0], U[..., 1]
 
     for i in range(sim.num_of_dumbbells):
@@ -116,7 +116,7 @@ def flow_multiple_dumbbells():
 
     ax[2].set_title(fr'Time: {t[80]:1f}')
     sim.bead_pos = sol[:, 80].reshape(sim.num_of_dumbbells*2, 2)
-    U = sim.fluid_flow(X)
+    U = sim.fluid_flow(X, t[80])
     u, v = U[..., 0], U[..., 1]
 
     for i in range(sim.num_of_dumbbells):

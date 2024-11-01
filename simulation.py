@@ -1,5 +1,5 @@
 import time
-from typing import Optional
+from typing import Optional, Callable
 
 import numpy as np
 import matplotlib as mpl
@@ -17,7 +17,7 @@ class Simulation:
                  k: Optional[float] = 0.1,
                  eps: Optional[float] = 0.15,
                  rest_length: Optional[float] = 0.25,
-                 shear: Optional[float] = 1.0) -> None:
+                 bg_flow: Optional[Callable] = lambda _, __: 0) -> None:
         """
         Initialises the Simulation class.
 
@@ -34,17 +34,17 @@ class Simulation:
             Value of epsilon used in the the regular stokeslet, default is 0.15.
         rest_length: float, optional 
             Rest length of the dumbbell, default is 0.25.
-        shear: float, optional
-            Background shear strength, default is 1.0.
+        bg_flow: Callable, optional
+            An arbitrary background flow added at the end, default is lambda _, __: 0.
         """
         
         self.mu = mu
         self.k = k
         self.eps = eps
         self.rest_length = rest_length
-        self.shear = shear
+        self.bg_flow = bg_flow
         self.bead_sol = None
-
+        
         if bead_pos is None:
             self.bead_pos = np.array([[0, 0.5], [0, -0.5]])
         else:
@@ -60,9 +60,21 @@ class Simulation:
         self.num_of_dumbbells = int(self.bead_pos.shape[0]/2)
         self.num_of_beads = int(2*self.num_of_dumbbells)
         
-    def fluid_flow(self, x: ArrayLike) -> np.ndarray:
+    def fluid_flow(self, x: ArrayLike, t: np.ndarray) -> np.ndarray:
         """
-        Returns the current fluid flow at position x.
+        Returns the current fluid flow at position x and time t.
+
+        Parameters
+        ----------
+        x: ArrayLike
+            Coordinates in space to evaluate.
+        t: ndarray
+            Time to evaluate.
+
+        Returns
+        -------
+        u: ndarray
+            Velocities of the flow at (x, t). 
         """
     
         xr = self.bead_pos[1::2] - self.bead_pos[::2]
@@ -93,7 +105,7 @@ class Simulation:
             (s2 * const[..., np.newaxis]).sum(axis=-2)
        )
 
-        u[..., 0] += self.shear * x[..., 1]
+        u += self.bg_flow(x, t)
 
         return u
     
@@ -136,7 +148,7 @@ class Simulation:
                 (s2 * const[..., np.newaxis]).sum(axis=-2)
         )
 
-            u[..., 0] += self.shear * x[..., 1]
+            u += self.bg_flow(x, t)
             u_array[n] = u
 
         return np.ravel(u_array)
@@ -203,7 +215,7 @@ class Simulation:
         y_flat = np.linspace(domain[0][1], domain[1][1], grid_points)
         X = np.meshgrid(x_flat, y_flat)
         x, y = X
-        U = self.fluid_flow(X)
+        U = self.fluid_flow(X, 0)
         u, v = U[..., 0], U[..., 1]
         num_of_dumbbells = int(self.bead_pos.shape[0]/2)
 
@@ -228,7 +240,7 @@ class Simulation:
         def update(fn):
             ax.set_title(fr'Time: {t[fn]:2f}')
             self.bead_pos = sol[:, fn].reshape(num_of_dumbbells*2, 2)
-            U = self.fluid_flow(X)
+            U = self.fluid_flow(X, t[fn])
             u, v = U[..., 0], U[..., 1]
             z = np.sqrt(u*u + v*v)
             self.heatmap.set_array(z)
@@ -284,7 +296,7 @@ class Simulation:
         y_flat = np.linspace(domain[0][1], domain[1][1], grid_points)
         z_flat = np.linspace(domain[0][2], domain[1][2], grid_points)
         X = np.meshgrid(x_flat, y_flat, z_flat)
-        U = self.fluid_flow(X)
+        U = self.fluid_flow(X, 0)
         u, v, w = U[..., 0], U[..., 1], U[..., 2]
         x, y, z = X
 
@@ -312,7 +324,7 @@ class Simulation:
         def update(fn):
             ax.set_title(fr'Time: {t[fn]:2f}')
             self.bead_pos = sol[:, fn].reshape(num_of_dumbbells*2, 3)
-            U = self.fluid_flow(X)
+            U = self.fluid_flow(X, t[fn])
             u, v, w = U[..., 0], U[..., 1], U[..., 2]
             
             for d in range(num_of_dumbbells):
@@ -324,3 +336,18 @@ class Simulation:
         if filename is not None:
             animation.save(f'./videos/{filename}', writer='ffmpeg', fps=20)
         plt.show()
+
+class FlowLibrary:
+
+    def shear_flow_2d(x, t, shear=1.0):
+        return np.stack([shear*x[..., 1], 
+                         np.zeros_like(x[..., 1])], axis=-1)
+    
+    def shear_flow_3d(x, t, shear=1.0):
+        return np.stack([shear*x[..., 1], 
+                         np.zeros_like(x[..., 1]), 
+                         np.zeros_like(x[..., 1])], axis=-1)
+    
+    def osc_shear_flow_2d(x, t, shear=1.0, ang_freq = 1.0):
+        return np.stack([shear*np.cos(ang_freq*t)*x[..., 1], 
+                         np.zeros_like(x[..., 1])], axis=-1)
