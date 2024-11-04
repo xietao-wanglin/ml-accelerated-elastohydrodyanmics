@@ -17,6 +17,7 @@ class Simulation:
                  k: Optional[float] = 0.1,
                  eps: Optional[float] = 0.15,
                  rest_length: Optional[float] = 0.25,
+                 gravity: Optional[float] = 0.0,
                  bg_flow: Optional[Callable] = lambda _, __: 0) -> None:
         """
         Initialises the Simulation class.
@@ -42,6 +43,7 @@ class Simulation:
         self.k = k
         self.eps = eps
         self.rest_length = rest_length
+        self.gravity = gravity
         self.bg_flow = bg_flow
         self.bead_sol = None
         
@@ -90,20 +92,32 @@ class Simulation:
             )
 
         const = self.k*(dists-self.rest_length)/(8*np.pi*self.mu*self.rest_length*dists)
-        
-        s1 = (xr * (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
-      (x[..., np.newaxis, :] - self.bead_pos[::2]) * 
-      ((x[..., np.newaxis, :] - self.bead_pos[::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+            
+        s1k = (xr * (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+        (x[..., np.newaxis, :] - self.bead_pos[::2]) * 
+        ((x[..., np.newaxis, :] - self.bead_pos[::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
 
-        
-        s2 = (xr * (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
-      (x[..., np.newaxis, :] - self.bead_pos[1::2]) * 
-      ((x[..., np.newaxis, :] - self.bead_pos[1::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+            
+        s2k = (xr * (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+        (x[..., np.newaxis, :] - self.bead_pos[1::2]) * 
+        ((x[..., np.newaxis, :] - self.bead_pos[1::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+            
+        s1g = ((x[..., np.newaxis, :] - self.bead_pos[::2]) * 
+            (x[..., np.newaxis, :] - self.bead_pos[::2])[..., 1][..., np.newaxis]) / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+        s2g = ((x[..., np.newaxis, :] - self.bead_pos[1::2]) * 
+            (x[..., np.newaxis, :] - self.bead_pos[1::2])[..., 1][..., np.newaxis]) / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+        s1g[..., 1, np.newaxis] += (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis]  / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+        s2g[..., 1, np.newaxis] += (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis]  / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+        s1 = s1k*const[..., np.newaxis] - self.gravity*s1g/(8*np.pi*self.mu)
+        s2 = s2k*const[..., np.newaxis] + self.gravity*s2g/(8*np.pi*self.mu)
 
         u = (
-            (s1 * const[..., np.newaxis]).sum(axis=-2) -  
-            (s2 * const[..., np.newaxis]).sum(axis=-2)
-       )
+                (s1).sum(axis=-2) -  
+                (s2).sum(axis=-2)
+        )
 
         u += self.bg_flow(x, t)
 
@@ -134,18 +148,30 @@ class Simulation:
 
             const = self.k*(dists-self.rest_length)/(8*np.pi*self.mu*self.rest_length*dists)
             
-            s1 = (xr * (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+            s1k = (xr * (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
         (x[..., np.newaxis, :] - positions[::2]) * 
         ((x[..., np.newaxis, :] - positions[::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
 
             
-            s2 = (xr * (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+            s2k = (xr * (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis] + 
         (x[..., np.newaxis, :] - positions[1::2]) * 
         ((x[..., np.newaxis, :] - positions[1::2]) * xr).sum(axis=-1, keepdims=True)) / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+            
+            s1g = ((x[..., np.newaxis, :] - positions[::2]) * 
+            (x[..., np.newaxis, :] - positions[::2])[..., 1][..., np.newaxis]) / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+            s2g = ((x[..., np.newaxis, :] - positions[1::2]) * 
+            (x[..., np.newaxis, :] - positions[1::2])[..., 1][..., np.newaxis]) / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+            s1g[..., 1, np.newaxis] += (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis]  / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+            s2g[..., 1, np.newaxis] += (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis]  / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+
+            s1 = s1k*const[..., np.newaxis] - self.gravity*s1g/(8*np.pi*self.mu)
+            s2 = s2k*const[..., np.newaxis] + self.gravity*s2g/(8*np.pi*self.mu)
 
             u = (
-                (s1 * const[..., np.newaxis]).sum(axis=-2) -  
-                (s2 * const[..., np.newaxis]).sum(axis=-2)
+                (s1).sum(axis=-2) -  
+                (s2).sum(axis=-2)
         )
 
             u += self.bg_flow(x, t)

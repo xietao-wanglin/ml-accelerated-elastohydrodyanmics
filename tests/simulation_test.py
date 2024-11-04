@@ -12,7 +12,7 @@ class TestFlow(TestCase):
     
     def test_single_dumbbell_flow(self):
         
-        sim = Simulation(bg_flow=FlowLibrary.shear_flow_2d) 
+        sim = Simulation(gravity=1.0, k=0) 
         x_flat = np.linspace(-1, 1, 100)
         y_flat = np.linspace(-1, 1, 100)
         X = np.meshgrid(x_flat, y_flat)
@@ -48,21 +48,22 @@ class TestFlow(TestCase):
 
     def test_animation_single_dumbbell(self):
 
-        sim = Simulation(bg_flow=FlowLibrary.osc_shear_flow_2d)
+        r = np.array([[0, 0.5], [0, -0.5]])
+        sim = Simulation(gravity=0, bead_pos=r, rest_length=1)
         sim.solve_dynamics(max_time=10.0, verbose=True)
         sim.create_2d_animation()
 
     def test_animation_three_dumbbell(self):
 
-        r = np.array([[ 0.72771121, +0.76493629],
-            [ 0.03475821, -0.73586379],
+        r = np.array([[ -4.72771121, +0.76493629],
+            [ -2.03475821, -0.73586379],
             [ 0.83371936, +0.20788059],
             [ 0.13084262, -0.63344033],
             [-0.71030448, -0.8388744],
             [-0.28877452,  0.88086389]])
-        sim = Simulation(bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d)
+        sim = Simulation(bead_pos=r, gravity=0.3, bg_flow=lambda x, t: FlowLibrary.shear_flow_2d(x, t, shear=0.1))
         sim.solve_dynamics(max_time=20.0, verbose=True)
-        sim.create_2d_animation(domain=[[-3, -3], [3, 3]])
+        sim.create_2d_animation(domain=[[-6, -6], [3, 3]], filename='sedimentation_shear.mp4')
 
     def test_3d_single_dumbbell_flow(self):
 
@@ -88,18 +89,18 @@ class TestFlow(TestCase):
 
         r = np.array([[0, 0.5, 0], 
                       [0, -0.5, 0]])
-        sim = Simulation(bead_pos=r, bg_flow=FlowLibrary.shear_flow_3d)
+        sim = Simulation(bead_pos=r, gravity=0.3)
         sim.solve_dynamics(max_time=10.0, verbose=True, method='Radau')
         sim.create_3d_animation(domain=[[-1, -1, -1], [1, 1, 1]], arrow_size=10)
 
     def test_3d_animation_three_dumbbell(self):
 
         r = np.array([[ 0.72771121, +0.76493629, 0.2],
-            [ 0.03475821, -0.73586379, 0.2],
+            [ 0.03475821, -0.73586379, -0.2],
             [ 0.83371936, +0.20788059, 0],
-            [ 0.13084262, -0.63344033, 0],
+            [ 0.13084262, -0.63344033, 0.6],
             [-0.71030448, -0.8388744, -0.3],
             [-0.28877452,  0.88086389, -0.45]])
-        sim = Simulation(bead_pos=r, bg_flow=FlowLibrary.shear_flow_3d)
+        sim = Simulation(bead_pos=r, bg_flow=lambda x, t: FlowLibrary.shear_flow_3d(x, t, shear=0.1), gravity=0.3)
         sim.solve_dynamics(max_time=20.0, verbose=True)
-        sim.create_3d_animation(domain=[[-3, -3, -3], [3, 3, 3]])
+        sim.create_3d_animation(domain=[[-6, -6, -6], [3, 3, 3]])

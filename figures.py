@@ -157,8 +157,34 @@ def simulation_scaling_implicit():
     plt.savefig('./figures/simulation_scaling_implicit.png', bbox_inches='tight')
     plt.show()
 
+def dumbbell_contraction():
+
+    def analytical(t, x0, L, const):
+        return L + (x0-L)*np.exp(-const*t/L)
+
+    f, ax = plt.subplots(1, 1, figsize=(12, 5))
+
+    k, eps, mu = 0.1, 0.15, 1.0
+    sim = Simulation(k=k, mu=mu, eps=eps, rest_length=0.25)
+    const = k/(4*np.pi*eps*mu)
+    sim.solve_dynamics(max_time=20.0)
+    sol = sim.bead_sol
+    t = np.linspace(0, 20, 100)
+    y = sol.sol(t)
+    ax.plot(t, y[1], label='Dumbbell')
+    ax.plot(t, analytical(t, 0.5, 0.125, const), label='Single')
+    ax.set_xlabel(r'Time, $t$')
+    ax.set_ylabel(r'$y_1(t)$')
+    ax.set_xlim(0, 20)
+    ax.set_ylim(0.125, 0.5)
+    ax.legend(frameon=False)
+    plt.savefig('./figures/dumbbell_constraction.pdf', bbox_inches='tight')
+    plt.savefig('./figures/dumbbell_constraction.png', bbox_inches='tight')
+    plt.show()
+
 if __name__ == '__main__':
 
-    flow_around_dumbbell()
-    flow_multiple_dumbbells()
-    simulation_scaling_implicit()
+    #flow_around_dumbbell()
+    #flow_multiple_dumbbells()
+    #simulation_scaling_implicit()
+    dumbbell_contraction()
