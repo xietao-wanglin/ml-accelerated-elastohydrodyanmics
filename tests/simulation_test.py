@@ -48,9 +48,9 @@ class TestFlow(TestCase):
 
     def test_animation_single_dumbbell(self):
 
-        r = np.array([[0, 0.5], [0, -0.5]])
-        sim = Simulation(gravity=0, bead_pos=r, rest_length=1)
-        sim.solve_dynamics(max_time=10.0, verbose=True)
+        r = np.array([[-0.4, 0.05], [0.4, -0.05]])
+        sim = Simulation(gravity=0, bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d, repulsion=0.01)
+        sim.solve_dynamics(max_time=40.0, verbose=True)
         sim.create_2d_animation()
 
     def test_animation_three_dumbbell(self):
@@ -61,9 +61,9 @@ class TestFlow(TestCase):
             [ 0.13084262, -0.63344033],
             [-0.71030448, -0.8388744],
             [-0.28877452,  0.88086389]])
-        sim = Simulation(bead_pos=r, gravity=0.3, bg_flow=lambda x, t: FlowLibrary.shear_flow_2d(x, t, shear=0.1))
-        sim.solve_dynamics(max_time=20.0, verbose=True)
-        sim.create_2d_animation(domain=[[-6, -6], [3, 3]], filename='sedimentation_shear.mp4')
+        sim = Simulation(bead_pos=r, gravity=0.0, bg_flow=lambda x, t: FlowLibrary.shear_flow_2d(x, t, shear=0.1))
+        sim.solve_dynamics(max_time=10.0, verbose=True, method='Radau')
+        sim.create_2d_animation(domain=[[-6, -6], [3, 3]])
 
     def test_3d_single_dumbbell_flow(self):
 

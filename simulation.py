@@ -18,6 +18,7 @@ class Simulation:
                  eps: Optional[float] = 0.15,
                  rest_length: Optional[float] = 0.25,
                  gravity: Optional[float] = 0.0,
+                 repulsion: Optional[float] = 0.0,
                  bg_flow: Optional[Callable] = lambda _, __: 0) -> None:
         """
         Initialises the Simulation class.
@@ -35,6 +36,10 @@ class Simulation:
             Value of epsilon used in the the regular stokeslet, default is 0.15.
         rest_length: float, optional 
             Rest length of the dumbbell, default is 0.25.
+        gravity: float, optional
+            Strength of the gravitational weight, default is 0.0.
+        repulsion: float, optional
+            Strength of repulsive force between beads, default is 0.0.
         bg_flow: Callable, optional
             An arbitrary background flow added at the end, default is lambda _, __: 0.
         """
@@ -44,6 +49,7 @@ class Simulation:
         self.eps = eps
         self.rest_length = rest_length
         self.gravity = gravity
+        self.repulsion = repulsion
         self.bg_flow = bg_flow
         self.bead_sol = None
         
@@ -111,12 +117,27 @@ class Simulation:
         s1g[..., 1, np.newaxis] += (rn[..., ::2]**2 + 2 * self.eps**2)[..., np.newaxis]  / (rn[..., ::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
         s2g[..., 1, np.newaxis] += (rn[..., 1::2]**2 + 2 * self.eps**2)[..., np.newaxis]  / (rn[..., 1::2]**2 + self.eps**2)[..., np.newaxis]**(3/2)
 
+        total_repulsion = np.zeros_like((x[..., np.newaxis, :] - self.bead_pos[:]))
+        for bead in range(self.num_of_beads):
+            xrm = self.bead_pos[bead] - self.bead_pos
+            dists_m = np.sqrt(
+                (xrm*xrm).sum(axis=1)
+            )
+
+            sm = (xrm*(rn[..., :]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+                   (x[..., np.newaxis, :] - self.bead_pos[:]) * 
+                   ((x[..., np.newaxis, :] - self.bead_pos[:]) * xrm).sum(axis=-1, keepdims=True)) / (rn[..., :]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+            
+            repulsion = -(self.repulsion*np.exp(-dists_m**2)[..., np.newaxis]*np.nan_to_num(sm/dists_m[..., np.newaxis]))
+            total_repulsion += repulsion
+        
         s1 = s1k*const[..., np.newaxis] - self.gravity*s1g/(8*np.pi*self.mu)
-        s2 = s2k*const[..., np.newaxis] + self.gravity*s2g/(8*np.pi*self.mu)
+        s2 = s2k*const[..., np.newaxis] + self.gravity*s2g/(8*np.pi*self.mu) 
 
         u = (
                 (s1).sum(axis=-2) -  
-                (s2).sum(axis=-2)
+                (s2).sum(axis=-2) + 
+                (total_repulsion).sum(axis=-2)
         )
 
         u += self.bg_flow(x, t)
@@ -169,9 +190,24 @@ class Simulation:
             s1 = s1k*const[..., np.newaxis] - self.gravity*s1g/(8*np.pi*self.mu)
             s2 = s2k*const[..., np.newaxis] + self.gravity*s2g/(8*np.pi*self.mu)
 
+            total_repulsion = np.zeros_like((x[..., np.newaxis, :] - positions[:]))
+            for bead in range(self.num_of_beads):
+                xrm = positions[bead] - positions
+                dists_m = np.sqrt(
+                    (xrm*xrm).sum(axis=1)
+                )
+
+                sm = (xrm*(rn[..., :]**2 + 2 * self.eps**2)[..., np.newaxis] + 
+                    (x[..., np.newaxis, :] - positions[:]) * 
+                    ((x[..., np.newaxis, :] - positions[:]) * xrm).sum(axis=-1, keepdims=True)) / (rn[..., :]**2 + self.eps**2)[..., np.newaxis]**(3/2)
+                
+                repulsion = -(self.repulsion*np.exp(-dists_m**2)[..., np.newaxis]*np.nan_to_num(sm/dists_m[..., np.newaxis]))
+                total_repulsion += repulsion
+
             u = (
                 (s1).sum(axis=-2) -  
-                (s2).sum(axis=-2)
+                (s2).sum(axis=-2) + 
+                (total_repulsion).sum(axis=-2)
         )
 
             u += self.bg_flow(x, t)
@@ -374,6 +410,6 @@ class FlowLibrary:
                          np.zeros_like(x[..., 1]), 
                          np.zeros_like(x[..., 1])], axis=-1)
     
-    def osc_shear_flow_2d(x, t, shear=1.0, ang_freq = 1.0):
+    def osc_shear_flow_2d(x, t, shear=1.0, ang_freq=1.0):
         return np.stack([shear*np.cos(ang_freq*t)*x[..., 1], 
                          np.zeros_like(x[..., 1])], axis=-1)

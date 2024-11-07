@@ -140,7 +140,7 @@ def flow_multiple_dumbbells():
 
 def simulation_scaling_implicit():
 
-    data = np.loadtxt('./data/scaling.dat', delimiter=',')
+    data = np.loadtxt('./data/scaling_implicit.dat', delimiter=',')
     mean = data.mean(axis=1)
     error = data.std(axis=1)/data.shape[1]
     num_of_beads = np.array([2**x for x in range(1, 11)])/2
@@ -184,7 +184,7 @@ def dumbbell_contraction():
 
 if __name__ == '__main__':
 
-    #flow_around_dumbbell()
-    #flow_multiple_dumbbells()
-    #simulation_scaling_implicit()
+    flow_around_dumbbell()
+    flow_multiple_dumbbells()
+    simulation_scaling_implicit()
     dumbbell_contraction()
