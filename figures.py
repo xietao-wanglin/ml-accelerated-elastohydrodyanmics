@@ -182,9 +182,28 @@ def dumbbell_contraction():
     plt.savefig('./figures/dumbbell_constraction.png', bbox_inches='tight')
     plt.show()
 
+def dumbbell_compression():
+
+    r = np.array([[-0.4, 0.05], [0.4, -0.05]])
+    sim = Simulation(gravity=0, bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d, repulsion=0.1)
+    sim.solve_dynamics(max_time=100.0, verbose=True)
+    t = np.linspace(0, 100, 1000)
+    y = sim.bead_sol.sol(t)
+    xr = y[0] - y[2]
+    yr = y[1] - y[3]
+    dist = np.sqrt(xr*xr+yr*yr)
+    plt.plot(t, dist)
+    plt.axhline(y=0.25, color='red', ls='--')
+    plt.title('Compression')
+    plt.xlabel('Time (t)')
+    plt.ylabel('Length of dumbbell')
+    #plt.savefig('./figures/length_evolution.png', bbox_inches='tight')
+    plt.show()
+
 if __name__ == '__main__':
 
-    flow_around_dumbbell()
-    flow_multiple_dumbbells()
-    simulation_scaling_implicit()
-    dumbbell_contraction()
+    #flow_around_dumbbell()
+    #flow_multiple_dumbbells()
+    #simulation_scaling_implicit()
+    #dumbbell_contraction()
+    dumbbell_compression()

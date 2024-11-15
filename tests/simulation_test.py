@@ -34,7 +34,7 @@ class TestFlow(TestCase):
             [ 0.13084262, -0.63344033],
             [-0.71030448, -0.8388744],
             [-0.28877452,  0.88086389]])
-        sim = Simulation(bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d)
+        sim = Simulation(bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d, repulsion=1)
         x_flat = np.linspace(-1, 1, 100)
         y_flat = np.linspace(-1, 1, 100)
         X = np.meshgrid(x_flat, y_flat)
@@ -49,9 +49,9 @@ class TestFlow(TestCase):
     def test_animation_single_dumbbell(self):
 
         r = np.array([[-0.4, 0.05], [0.4, -0.05]])
-        sim = Simulation(gravity=0, bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d, repulsion=0.01)
+        sim = Simulation(gravity=0, bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d, repulsion=0.0)
         sim.solve_dynamics(max_time=40.0, verbose=True)
-        sim.create_2d_animation()
+        sim.create_2d_animation(filename='no_repulsion_single.mp4')
 
     def test_animation_three_dumbbell(self):
 
@@ -61,9 +61,9 @@ class TestFlow(TestCase):
             [ 0.13084262, -0.63344033],
             [-0.71030448, -0.8388744],
             [-0.28877452,  0.88086389]])
-        sim = Simulation(bead_pos=r, gravity=0.0, bg_flow=lambda x, t: FlowLibrary.shear_flow_2d(x, t, shear=0.1))
-        sim.solve_dynamics(max_time=10.0, verbose=True, method='Radau')
-        sim.create_2d_animation(domain=[[-6, -6], [3, 3]])
+        sim = Simulation(bead_pos=r, gravity=0.0, bg_flow=lambda x, t: FlowLibrary.shear_flow_2d(x, t, shear=1), repulsion=1)
+        sim.solve_dynamics(max_time=40.0, verbose=True, method='Radau')
+        sim.create_2d_animation(domain=[[-6, -6], [6, 6]], filename='repulsion_multiple.mp4')
 
     def test_3d_single_dumbbell_flow(self):
 

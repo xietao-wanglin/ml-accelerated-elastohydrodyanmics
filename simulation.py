@@ -19,7 +19,8 @@ class Simulation:
                  rest_length: Optional[float] = 0.25,
                  gravity: Optional[float] = 0.0,
                  repulsion: Optional[float] = 0.0,
-                 bg_flow: Optional[Callable] = lambda _, __: 0) -> None:
+                 bg_flow: Optional[Callable] = lambda _, __: 0,
+                 boundary: Optional[bool] = False) -> None:
         """
         Initialises the Simulation class.
 
@@ -42,6 +43,9 @@ class Simulation:
             Strength of repulsive force between beads, default is 0.0.
         bg_flow: Callable, optional
             An arbitrary background flow added at the end, default is lambda _, __: 0.
+        boundary: bool, optional
+            Set to true to introduce a plane boundary at z = 0, default is False.
+            Only works in three-dimensional space. 
         """
         
         self.mu = mu
@@ -52,6 +56,7 @@ class Simulation:
         self.repulsion = repulsion
         self.bg_flow = bg_flow
         self.bead_sol = None
+        self.boundary = boundary
         
         if bead_pos is None:
             self.bead_pos = np.array([[0, 0.5], [0, -0.5]])
@@ -62,6 +67,8 @@ class Simulation:
 
         if self.dim == 1:
             self.bead_pos = np.transpose(np.atleast_2d(bead_pos))
+        if boundary and self.dim != 3:
+            raise ValueError('boundary = True only works in three dimensional space.')
         if (self.bead_pos.shape[0] % 2) == 1:
             raise ValueError('Number of beads must be even.')
         
@@ -201,7 +208,7 @@ class Simulation:
                     (x[..., np.newaxis, :] - positions[:]) * 
                     ((x[..., np.newaxis, :] - positions[:]) * xrm).sum(axis=-1, keepdims=True)) / (rn[..., :]**2 + self.eps**2)[..., np.newaxis]**(3/2)
                 
-                repulsion = -(self.repulsion*np.exp(-dists_m**2)[..., np.newaxis]*np.nan_to_num(sm/dists_m[..., np.newaxis]))
+                repulsion = -(self.repulsion*np.exp(-(dists_m**2))[..., np.newaxis]*np.nan_to_num(sm/(8*np.pi*self.mu*dists_m[..., np.newaxis])))
                 total_repulsion += repulsion
 
             u = (
