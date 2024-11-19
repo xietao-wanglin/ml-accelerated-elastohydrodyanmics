@@ -8,7 +8,6 @@ import matplotlib.colors as colors
 
 from scipy.integrate import solve_ivp
 from matplotlib.animation import FuncAnimation
-from numpy.typing import ArrayLike
 
 class Simulation:
 
@@ -43,9 +42,6 @@ class Simulation:
             Strength of repulsive force between beads, default is 0.0.
         bg_flow: Callable, optional
             An arbitrary background flow added at the end, default is lambda _, __: 0.
-        boundary: bool, optional
-            Set to true to introduce a plane boundary at z = 0, default is False.
-            Only works in three-dimensional space. 
         """
         
         self.mu = mu
@@ -67,21 +63,19 @@ class Simulation:
 
         if self.dim == 1:
             self.bead_pos = np.transpose(np.atleast_2d(bead_pos))
-        if boundary and self.dim != 3:
-            raise ValueError('boundary = True only works in three dimensional space.')
         if (self.bead_pos.shape[0] % 2) == 1:
             raise ValueError('Number of beads must be even.')
         
         self.num_of_dumbbells = int(self.bead_pos.shape[0]/2)
         self.num_of_beads = int(2*self.num_of_dumbbells)
         
-    def fluid_flow(self, x: ArrayLike, t: np.ndarray) -> np.ndarray:
+    def fluid_flow(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
         """
         Returns the current fluid flow at position x and time t.
 
         Parameters
         ----------
-        x: ArrayLike
+        x: ndarray
             Coordinates in space to evaluate.
         t: ndarray
             Time to evaluate.
@@ -332,7 +326,8 @@ class Simulation:
     def create_3d_animation(self, domain: Optional[list] = None, 
                          grid_points: Optional[int] = 10, 
                          n_timesteps: Optional[int] = 100,
-                         arrow_size: Optional[float] = 1.0, 
+                         arrow_size: Optional[float] = 1.0,
+                         same_size: Optional[bool] = False, 
                          filename: Optional[str] = None) -> None:
         """
         Creates two-dimensional animation of beads and fluid flow.
@@ -380,7 +375,7 @@ class Simulation:
         ax.set_zlabel(r'$z$')
         ax.set_title(r'Time: 0.0')
 
-        self.quiver = ax.quiver(x, y, z, u, v, w, color='r', length=arrow_size)
+        self.quiver = ax.quiver(x, y, z, u, v, w, color='r', length=arrow_size, normalize=same_size)
 
         lines = [None]*num_of_dumbbells
         for d in range(num_of_dumbbells):

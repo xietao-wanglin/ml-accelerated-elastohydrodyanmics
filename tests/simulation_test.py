@@ -51,7 +51,7 @@ class TestFlow(TestCase):
         r = np.array([[-0.4, 0.05], [0.4, -0.05]])
         sim = Simulation(gravity=0, bead_pos=r, bg_flow=FlowLibrary.shear_flow_2d, repulsion=0.0)
         sim.solve_dynamics(max_time=40.0, verbose=True)
-        sim.create_2d_animation(filename='no_repulsion_single.mp4')
+        sim.create_2d_animation()
 
     def test_animation_three_dumbbell(self):
 
@@ -89,7 +89,7 @@ class TestFlow(TestCase):
 
         r = np.array([[0, 0.5, 0], 
                       [0, -0.5, 0]])
-        sim = Simulation(bead_pos=r, gravity=0.3)
+        sim = Simulation(bead_pos=r, gravity=0.0)
         sim.solve_dynamics(max_time=10.0, verbose=True, method='Radau')
         sim.create_3d_animation(domain=[[-1, -1, -1], [1, 1, 1]], arrow_size=10)
 

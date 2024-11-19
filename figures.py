@@ -138,23 +138,30 @@ def flow_multiple_dumbbells():
     plt.savefig('./figures/flow_multiple_dumbbells.png', bbox_inches='tight')
     plt.show()
 
-def simulation_scaling_implicit():
+def simulation_scaling():
 
     data = np.loadtxt('./data/scaling_implicit.dat', delimiter=',')
+    
     mean = data.mean(axis=1)
     error = data.std(axis=1)/data.shape[1]
     num_of_beads = np.array([2**x for x in range(1, 11)])/2
     f, ax = plt.subplots(1, 1)
-    ax.errorbar(num_of_beads, mean, yerr=error, marker='o', lw=2, color='red', capsize=4, label='Computed runtime')
-    ax.plot(num_of_beads[3:], (0.00005*num_of_beads**3)[3:], lw=2, ls='dashed', color='black', label=r'$O(N^3)$')
+    ax.errorbar(num_of_beads, mean, yerr=error, marker='o', lw=2, color='red', capsize=4, label='Implicit')
+    ax.plot(num_of_beads[5:], (0.00005*num_of_beads**3)[5:], lw=2, ls='dashed', color='black', label=r'$O(N^3)$')
+    data = np.loadtxt('./data/scaling_explicit.dat', delimiter=',')[:10]
+    mean = data.mean(axis=1)
+    error = data.std(axis=1)/data.shape[1]
+    num_of_beads = np.array([2**x for x in range(1, 11)])/2
+    ax.errorbar(num_of_beads, mean, yerr=error, marker='d', lw=2, color='blue', capsize=4, label='Explicit')
+    ax.plot(num_of_beads[5:], (0.00015*num_of_beads**2)[5:], lw=2, ls='dashdot', color='brown', label=r'$O(N^2)$')
     ax.set_ylabel('Time, seconds')
     ax.set_xlabel('Number of dumbbells, $N$')
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.legend(frameon=False)
 
-    plt.savefig('./figures/simulation_scaling_implicit.pdf', bbox_inches='tight')
-    plt.savefig('./figures/simulation_scaling_implicit.png', bbox_inches='tight')
+    plt.savefig('./figures/simulation_scaling.pdf', bbox_inches='tight')
+    plt.savefig('./figures/simulation_scaling.png', bbox_inches='tight')
     plt.show()
 
 def dumbbell_contraction():
@@ -204,6 +211,6 @@ if __name__ == '__main__':
 
     #flow_around_dumbbell()
     #flow_multiple_dumbbells()
-    #simulation_scaling_implicit()
+    simulation_scaling()
     #dumbbell_contraction()
-    dumbbell_compression()
+    #dumbbell_compression()
