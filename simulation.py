@@ -291,7 +291,7 @@ class Simulation:
         ax.set_title(r'Time: 0.0')
         self.stream = ax.streamplot(x, y, u, v, color='red')
         self.heatmap = ax.pcolormesh(x, y, np.sqrt(u*u+v*v), alpha=1, cmap='PiYG',
-                                      norm=colors.LogNorm(vmin=0.001, vmax=100))
+                                      norm=colors.LogNorm(vmin=0.1, vmax=1))
         lines = [None]*num_of_dumbbells
         for d in range(num_of_dumbbells):
             lines[d], = ax.plot(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1],

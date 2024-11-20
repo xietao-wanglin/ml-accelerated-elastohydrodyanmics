@@ -28,7 +28,7 @@ class Simulation:
         ----------
         bead_pos: ndarray, optional 
             Position of beads at the start, default is None.
-            The rows are given by coordinates of each of the beads. Must have an even number of rows.
+            The rows are given by coordinates of each of the beads. Must have an even number of rows and three columns.
         mu: float, optional
             Dynamic viscosity, default is 1.0.
         k: float, optional
@@ -72,10 +72,9 @@ class Simulation:
         self.num_of_dumbbells = int(self.bead_pos.shape[0]/2)
         self.num_of_beads = int(2*self.num_of_dumbbells)
 
-    def regularised_stokeslet(self, x, y):
+    def regularised_stokeslet(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
         x = np.atleast_2d(x)
-        y = np.asarray(y)
 
         eps2 = self.eps*self.eps
         dx = x[:, 0] - y[0]
@@ -94,7 +93,7 @@ class Simulation:
         Gyz = dy*dz/reps
         Gzz = (reps_p + dz*dz)/reps
 
-        if self.boundary:
+        if self.boundary: # Convert to Blakelet
         
             # Image regularised stokeslet
             dz = x[:, 2] + y[2]
@@ -170,7 +169,22 @@ class Simulation:
             return G[0]
         return G
     
-    def fluid_flow(self, x, t):
+    def fluid_flow(self, x: np.ndarray, t: float):
+        """
+        Returns the current fluid flow at position x and time t.
+
+        Parameters
+        ----------
+        x: ndarray
+            Coordinates in space to evaluate.
+        t: float
+            Time to evaluate.
+
+        Returns
+        -------
+        u: ndarray
+            Velocities of the flow at (x, t). 
+        """
 
         x_flat = np.stack((x[0].ravel(), x[1].ravel(), x[2].ravel()), axis=-1)
         u = np.zeros((x_flat.shape[0], self.dim))
@@ -199,9 +213,12 @@ class Simulation:
         
         u += self.bg_flow(x_flat, t)
 
-        return u.reshape(x[0].shape + (3,))
+        return u.reshape(x[0].shape + (self.dim,))
     
     def bead_dynamics(self, t, positions):
+        """
+        Creates ODE system wrapper for SciPy's solve_ivp routine.
+        """
         positions = positions.reshape(self.num_of_beads, self.dim)
         u_array = np.zeros((self.num_of_beads, self.dim))
         for n in range(self.num_of_beads):
@@ -262,7 +279,7 @@ class Simulation:
 
         if verbose:
             end = time.time()
-            print(f'Solved bead dyanmics, took {end-start:2f} seconds.')
+            print(f'Solved bead dynamics, took {end-start:2f} seconds.')
 
     def create_3d_animation(self, domain: Optional[list] = None, 
                          grid_points: Optional[int] = 10, 
@@ -271,7 +288,7 @@ class Simulation:
                          same_size: Optional[bool] = False, 
                          filename: Optional[str] = None) -> None:
         """
-        Creates two-dimensional animation of beads and fluid flow.
+        Creates three-dimensional animation of beads and fluid flow.
 
         Parameters
         ----------
@@ -304,7 +321,6 @@ class Simulation:
         u, v, w = U[..., 0], U[..., 1], U[..., 2]
         x, y, z = X
 
-        num_of_dumbbells = int(self.bead_pos.shape[0]/2)
         f = plt.figure(figsize=(6, 5))
         ax = f.add_subplot(111, projection='3d')
         ax.set_xlim(domain[0][0], domain[1][0])
@@ -317,8 +333,8 @@ class Simulation:
 
         self.quiver = ax.quiver(x, y, z, u, v, w, color='r', length=arrow_size, normalize=same_size)
 
-        lines = [None]*num_of_dumbbells
-        for d in range(num_of_dumbbells):
+        lines = [None]*self.num_of_dumbbells
+        for d in range(self.num_of_dumbbells):
             lines[d], = ax.plot(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1],
                                 zs=self.bead_pos[2*d:2*d+2][:, 2],
                                  marker='o', lw=4)
@@ -327,11 +343,11 @@ class Simulation:
         sol = self.bead_sol.sol(t)
         def update(fn):
             ax.set_title(fr'Time: {t[fn]:2f}')
-            self.bead_pos = sol[:, fn].reshape(num_of_dumbbells*2, 3)
+            self.bead_pos = sol[:, fn].reshape(self.num_of_beads, 3)
             U = self.fluid_flow(X, t[fn])
             u, v, w = U[..., 0], U[..., 1], U[..., 2]
             
-            for d in range(num_of_dumbbells):
+            for d in range(self.num_of_dumbbells):
                 lines[d].set_data_3d(self.bead_pos[2*d:2*d+2][:, 0], self.bead_pos[2*d:2*d+2][:, 1], self.bead_pos[2*d:2*d+2][:, 2])
             self.quiver.remove()
             self.quiver = ax.quiver(x, y, z, u, v, w, color='r', length=arrow_size, normalize=same_size)
@@ -340,22 +356,114 @@ class Simulation:
         if filename is not None:
             animation.save(f'./videos/{filename}', writer='ffmpeg', fps=20)
         plt.show()
+    
+    def create_2d_projection(self, domain: Optional[list] = None, 
+                             grid_points: Optional[int] = 100, 
+                             n_timesteps: Optional[int] = 100, 
+                             filename: Optional[str] = None) -> None:
+        """
+        Creates a two-dimensional projection plot, by removing the x-axis.
+
+        Parameters
+        ----------
+        domain: list, optional
+            The space domain to evaluate, default is None. x-axis will be projected.
+        """
+
+        if self.bead_sol is None:
+            raise ValueError('Solve bead dynamics first')
+        
+        if domain is None:
+            domain = [[-1, -1, -1], [1, 1, 1]]
+        
+        x_flat = np.linspace(domain[0][0], domain[1][0], grid_points)
+        y_flat = np.linspace(domain[0][1], domain[1][1], grid_points)
+        z_flat = np.linspace(domain[0][2], domain[1][2], grid_points)
+        mp = len(x_flat) // 2
+        X = np.meshgrid(x_flat, y_flat, z_flat)
+        U = self.fluid_flow(X, 0)
+        u, v, w = U[..., 0], U[..., 1], U[..., 2]
+        x, y, z = X
+        proj_y, proj_z = np.meshgrid(y_flat, z_flat)
+    
+
+        f = plt.figure(figsize=(6, 5))
+        ax = f.add_subplot(111)
+        # X is Y, Y is Z
+        ax.set_xlim(domain[0][1], domain[1][1])
+        ax.set_ylim(domain[0][2], domain[1][2])
+        ax.set_xlabel(r'$y$')
+        ax.set_ylabel(r'$z$')
+        ax.set_title(r'Time: 0.0')
+        
+        #self.stream = ax.streamplot(proj_y, proj_z, proj_v, proj_w, color='red')
+        self.heatmap = ax.pcolormesh(proj_y, proj_z, np.sqrt(u.mean(axis=0)*u.mean(axis=0)+v.mean(axis=0)*v.mean(axis=0)+w.mean(axis=0)*w.mean(axis=0)), alpha=1, cmap='PiYG',
+                                      norm=colors.LogNorm(vmin=0.001, vmax=100))
+        lines = [None]*self.num_of_dumbbells
+        for d in range(self.num_of_dumbbells):
+            lines[d], = ax.plot(self.bead_pos[2*d:2*d+2][:, 1], self.bead_pos[2*d:2*d+2][:, 2],
+                                 marker='o', lw=4)
+        f.colorbar(self.heatmap, label=r'$|u| = \sqrt{u_i u_i}$')
+        max_t = self.bead_sol.t[-1]
+        t = np.linspace(0, max_t, n_timesteps)
+        sol = self.bead_sol.sol(t)
+        def update(fn):
+            ax.set_title(fr'Time: {t[fn]:2f}')
+            self.bead_pos = sol[:, fn].reshape(self.num_of_beads, 3)
+            U = self.fluid_flow(X, t[fn])
+            u, v, w = U[..., 0], U[..., 1], U[..., 2]
+            h = np.sqrt(u.mean(axis=0)*u.mean(axis=0) + v.mean(axis=0)*v.mean(axis=0) + w.mean(axis=0)*w.mean(axis=0))
+            print(h.max(), h.min())
+            self.heatmap.set_array(h)
+            
+            for d in range(self.num_of_dumbbells):
+                lines[d].set_data(self.bead_pos[2*d:2*d+2][:, 1], self.bead_pos[2*d:2*d+2][:, 2])
+            #self.stream.lines.remove()
+            #for art in ax.get_children():
+            #    if not isinstance(art, mpl.patches.FancyArrowPatch):
+            #        continue
+            #    art.remove()
+            
+            #self.stream = ax.streamplot(proj_y, proj_z, v[mp, :, :], w[mp, :, :], color='red')
+        animation = FuncAnimation(f, update, interval=1, frames=n_timesteps)
+        if filename is not None:
+            animation.save(f'./videos/{filename}', writer='ffmpeg', fps=20)
+        plt.show()
 
 class FlowLibrary:
+
+    def __init__(self, shear: Optional[float] = 1.0,
+                 strain: Optional[float] = 1.0,
+                 ang_freq: Optional[float] = 1.0):
+        """
+        Constructor for the FlowLibrary, includes a collection of standard background flows.
+
+        Parameters
+        ----------
+        shear: float, optional
+            Shear strength, default is 1.0.
+        strain: float, optional
+            Strain strength, default is 1.0.
+        ang_freq: float, optional
+            Angular frequency, default is 1.0.
+        """
+        self.shear = shear
+        self.strain = strain
+        self.ang_freq = ang_freq
     
-    def shear_flow_3d(x, t, shear=1.0):
-        return np.stack([shear*x[..., 1], 
-                         np.zeros_like(x[..., 1]), 
+    def shear_flow_3d(self, x, t) -> np.ndarray:
+        return np.stack([np.zeros_like(x[..., 1]),
+                         self.shear*x[..., 2], 
                          np.zeros_like(x[..., 1])], axis=-1)
     
-    def osc_shear_flow_3d(x, t, shear=1.0, ang_freq=1.0):
-        return np.stack([shear*np.cos(ang_freq*t)*x[..., 1], 
-                         np.zeros_like(x[..., 1]),
+    def osc_shear_flow_3d(self, x, t) -> np.ndarray:
+        return np.stack([np.zeros_like(x[..., 1]),
+                         self.shear*np.cos(self.ang_freq*t)*x[..., 2],
                          np.zeros_like(x[..., 1])], axis=-1)
     
-    def extensional_flow_3d(x, t, strain=1.0):
+    def extensional_flow_3d(self, x, t) -> np.ndarray:
         return np.stack([
                         np.zeros_like(x[..., 0]),
-                         strain*x[..., 1], 
-                         -strain*x[..., 2],
+                         self.strain*x[..., 1], 
+                         -self.strain*x[..., 2],
                          ], axis=-1)
