@@ -434,7 +434,8 @@ class FlowLibrary:
 
     def __init__(self, shear: Optional[float] = 1.0,
                  strain: Optional[float] = 1.0,
-                 ang_freq: Optional[float] = 1.0):
+                 ang_freq: Optional[float] = 1.0, 
+                 h: Optional[float] = 1.0):
         """
         Constructor for the FlowLibrary, includes a collection of standard background flows.
 
@@ -446,10 +447,13 @@ class FlowLibrary:
             Strain strength, default is 1.0.
         ang_freq: float, optional
             Angular frequency, default is 1.0.
+        h: float, optional
+            height of the boundary layer, default is 1.0.
         """
         self.shear = shear
         self.strain = strain
         self.ang_freq = ang_freq
+        self.h = h
     
     def shear_flow_3d(self, x, t) -> np.ndarray:
         return np.stack([np.zeros_like(x[..., 1]),
@@ -466,4 +470,11 @@ class FlowLibrary:
                         np.zeros_like(x[..., 0]),
                          self.strain*x[..., 1], 
                          -self.strain*x[..., 2],
+                         ], axis=-1)
+
+    def extensional_flow_3d_boundary(self, x, t) -> np.ndarray:
+        return np.stack([
+                        np.zeros_like(x[..., 0]),
+                         self.strain*x[..., 1]*x[..., 2]/self.h, 
+                         -self.strain*x[..., 2]*x[..., 2]/self.h,
                          ], axis=-1)
