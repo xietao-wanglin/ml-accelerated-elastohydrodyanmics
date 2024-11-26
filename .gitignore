@@ -129,6 +129,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.conda
 
 # Spyder project settings
 .spyderproject
@@ -161,6 +162,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# Wandb logs
+wandb/
+
 # VSCode settings
 .vscode/
 
@@ -168,7 +172,11 @@ cython_debug/
 *.pdf
 *.png
 *.mp4
+
+# Data and models
 *.dat
+*.pt
+*.pkl
 
 # Test work
 test_*
